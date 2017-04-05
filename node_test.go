@@ -55,6 +55,9 @@ func TestNodeCollector(t *testing.T) {
 		# HELP kube_node_status_allocatable_cpu_cores The CPU resources of a node that are available for scheduling.
 		# TYPE kube_node_status_allocatable_memory_bytes gauge
 		# HELP kube_node_status_allocatable_memory_bytes The memory resources of a node that are available for scheduling.
+		# HELP kube_node_status_kernel_deadlock Wether the kernel of the node has a temporary or permanent deadlock.
+                # TYPE kube_node_status_kernel_deadlock gauge
+
 	`
 	cases := []struct {
 		nodes   []v1.Node
@@ -213,6 +216,53 @@ func TestNodeCollector(t *testing.T) {
 				kube_node_status_phase{node="127.0.0.3",phase="Pending"} 0
 			`,
 			metrics: []string{"kube_node_status_phase"},
+		},
+		// Verify KernelDeadlock
+		{
+			nodes: []v1.Node{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.1",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeKernelDeadlock, Status: v1.ConditionTrue},
+						},
+					},
+				},
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.2",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeKernelDeadlock, Status: v1.ConditionUnknown},
+						},
+					},
+				},
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.3",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeKernelDeadlock, Status: v1.ConditionFalse},
+						},
+					},
+				},
+			},
+			want: metadata + `
+				kube_node_status_kernel_deadlock{node="127.0.0.1",condition="true"} 1
+				kube_node_status_kernel_deadlock{node="127.0.0.1",condition="false"} 0
+				kube_node_status_kernel_deadlock{node="127.0.0.1",condition="unknown"} 0
+				kube_node_status_kernel_deadlock{node="127.0.0.2",condition="true"} 0
+				kube_node_status_kernel_deadlock{node="127.0.0.2",condition="false"} 0
+				kube_node_status_kernel_deadlock{node="127.0.0.2",condition="unknown"} 1
+				kube_node_status_kernel_deadlock{node="127.0.0.3",condition="true"} 0
+				kube_node_status_kernel_deadlock{node="127.0.0.3",condition="false"} 1
+				kube_node_status_kernel_deadlock{node="127.0.0.3",condition="unknown"} 0
+			`,
+			metrics: []string{"kube_node_status_kernel_deadlock"},
 		},
 	}
 	for _, c := range cases {

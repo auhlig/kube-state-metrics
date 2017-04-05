@@ -61,6 +61,11 @@ var (
 		"The phase the node is currently in.",
 		[]string{"node", "phase"}, nil,
 	)
+	descNodeStatusKernelDeadlock = prometheus.NewDesc(
+		"kube_node_status_kernel_deadlock",
+		"Wether the kernel of the node has a temporary or permanent deadlock.",
+		[]string{"node", "condition"}, nil,
+	)
 
 	descNodeStatusCapacityPods = prometheus.NewDesc(
 		"kube_node_status_capacity_pods",
@@ -131,6 +136,7 @@ func (nc *nodeCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descNodeInfo
 	ch <- descNodeSpecUnschedulable
 	ch <- descNodeStatusReady
+	ch <- descNodeStatusKernelDeadlock
 	ch <- descNodeStatusOutOfDisk
 	ch <- descNodeStatusPhase
 	ch <- descNodeStatusCapacityCPU
@@ -178,6 +184,8 @@ func (nc *nodeCollector) collectNode(ch chan<- prometheus.Metric, n v1.Node) {
 			addConditionMetrics(ch, descNodeStatusReady, c.Status, n.Name)
 		case v1.NodeOutOfDisk:
 			addConditionMetrics(ch, descNodeStatusOutOfDisk, c.Status, n.Name)
+		case v1.NodeKernelDeadlock:
+			addConditionMetrics(ch, descNodeStatusKernelDeadlock, c.Status, n.Name)
 		}
 	}
 
