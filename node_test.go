@@ -57,6 +57,12 @@ func TestNodeCollector(t *testing.T) {
 		# HELP kube_node_status_allocatable_memory_bytes The memory resources of a node that are available for scheduling.
 		# HELP kube_node_status_kernel_deadlock Wether the kernel of the node has a temporary or permanent deadlock.
                 # TYPE kube_node_status_kernel_deadlock gauge
+                # HELP kube_node_status_memory_pressure Wether the kubelet is under pressure due to insufficient available memory.
+                # TYPE kube_node_status_memory_pressure gauge
+                # HELP kube_node_status_disk_pressure Wether the kubelet is under pressure due to insufficient available disk.
+                # TYPE kube_node_status_disk_pressure gauge
+                # HELP kube_node_status_network_unavailable Wether the network for the node is not correctly configured.
+                # TYPE kube_node_status_network_unavailable gauge
 
 	`
 	cases := []struct {
@@ -263,6 +269,53 @@ func TestNodeCollector(t *testing.T) {
 				kube_node_status_kernel_deadlock{node="127.0.0.3",condition="unknown"} 0
 			`,
 			metrics: []string{"kube_node_status_kernel_deadlock"},
+		},
+		// Verify MemoryPressure
+		{
+			nodes: []v1.Node{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.1",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeMemoryPressure, Status: v1.ConditionTrue},
+						},
+					},
+				},
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.2",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeMemoryPressure, Status: v1.ConditionUnknown},
+						},
+					},
+				},
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "127.0.0.3",
+					},
+					Status: v1.NodeStatus{
+						Conditions: []v1.NodeCondition{
+							{Type: v1.NodeMemoryPressure, Status: v1.ConditionFalse},
+						},
+					},
+				},
+			},
+			want: metadata + `
+				kube_node_status_memory_pressure{node="127.0.0.1",condition="true"} 1
+				kube_node_status_memory_pressure{node="127.0.0.1",condition="false"} 0
+				kube_node_status_memory_pressure{node="127.0.0.1",condition="unknown"} 0
+				kube_node_status_memory_pressure{node="127.0.0.2",condition="true"} 0
+				kube_node_status_memory_pressure{node="127.0.0.2",condition="false"} 0
+				kube_node_status_memory_pressure{node="127.0.0.2",condition="unknown"} 1
+				kube_node_status_memory_pressure{node="127.0.0.3",condition="true"} 0
+				kube_node_status_memory_pressure{node="127.0.0.3",condition="false"} 1
+				kube_node_status_memory_pressure{node="127.0.0.3",condition="unknown"} 0
+			`,
+			metrics: []string{"kube_node_status_memory_pressure"},
 		},
 	}
 	for _, c := range cases {

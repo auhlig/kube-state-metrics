@@ -66,6 +66,21 @@ var (
 		"Wether the kernel of the node has a temporary or permanent deadlock.",
 		[]string{"node", "condition"}, nil,
 	)
+	descNodeStatusMemoryPressure = prometheus.NewDesc(
+		"kube_node_status_memory_pressure",
+		"Wether the kubelet is under pressure due to insufficient available memory.",
+		[]string{"node", "condition"}, nil,
+	)
+	descNodeStatusDiskPressure = prometheus.NewDesc(
+		"kube_node_status_disk_pressure",
+		"Wether the kubelet is under pressure due to insufficient available disk.",
+		[]string{"node", "condition"}, nil,
+	)
+	descNodeStatusNetworkUnavailable = prometheus.NewDesc(
+		"kube_node_status_network_unavailable",
+		"Wether the network for the node is not correctly configured.",
+		[]string{"node", "condition"}, nil,
+	)
 
 	descNodeStatusCapacityPods = prometheus.NewDesc(
 		"kube_node_status_capacity_pods",
@@ -137,6 +152,9 @@ func (nc *nodeCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descNodeSpecUnschedulable
 	ch <- descNodeStatusReady
 	ch <- descNodeStatusKernelDeadlock
+	ch <- descNodeStatusMemoryPressure
+	ch <- descNodeStatusDiskPressure
+	ch <- descNodeStatusNetworkUnavailable
 	ch <- descNodeStatusOutOfDisk
 	ch <- descNodeStatusPhase
 	ch <- descNodeStatusCapacityCPU
@@ -177,7 +195,6 @@ func (nc *nodeCollector) collectNode(ch chan<- prometheus.Metric, n v1.Node) {
 	addGauge(descNodeSpecUnschedulable, boolFloat64(n.Spec.Unschedulable))
 
 	// Collect node conditions and while default to false.
-	// TODO(fabxc): add remaining conditions: NodeMemoryPressure,  NodeDiskPressure, NodeNetworkUnavailable
 	for _, c := range n.Status.Conditions {
 		switch c.Type {
 		case v1.NodeReady:
@@ -186,6 +203,12 @@ func (nc *nodeCollector) collectNode(ch chan<- prometheus.Metric, n v1.Node) {
 			addConditionMetrics(ch, descNodeStatusOutOfDisk, c.Status, n.Name)
 		case v1.NodeKernelDeadlock:
 			addConditionMetrics(ch, descNodeStatusKernelDeadlock, c.Status, n.Name)
+		case v1.NodeMemoryPressure:
+			addConditionMetrics(ch, descNodeStatusMemoryPressure, c.Status, n.Name)
+		case v1.NodeDiskPressure:
+			addConditionMetrics(ch, descNodeStatusDiskPressure, c.Status, n.Name)
+		case v1.NodeNetworkUnavailable:
+			addConditionMetrics(ch, descNodeStatusNetworkUnavailable, c.Status, n.Name)
 		}
 	}
 
